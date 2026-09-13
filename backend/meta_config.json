@@ -1,0 +1,20 @@
+{
+    "obi_threshold": 0.65,
+    "confidence_threshold": 45,
+    "min_sentiment_score": -0.1,
+    "strategy_parameters": {
+        "rsi_period": 14,
+        "ema_short": 9,
+        "ema_long": 21,
+        "ema_period": 24,
+        "bb_period": 20,
+        "bb_multiplier": 2.0,
+        "volatility_threshold_multiplier": 0.04,
+        "profit_target_multiplier": 1.2,
+        "stop_loss_multiplier": 0.95,
+        "atr_period": 14
+    },
+    "trend_filter_mode": "OFF",
+    "last_ai_tuning": "2026-09-10 07:39:51",
+    "ai_recommendation": "Nuclear rebuild applied. Sentiment relaxed, full Brain features wired."
+}

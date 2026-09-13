@@ -1,0 +1,12 @@
+fastapi
+uvicorn
+sqlalchemy
+websockets
+requests
+python-dotenv
+py-clob-client
+pandas
+numpy
+scikit-learn
+xgboost
+python-telegram-bot

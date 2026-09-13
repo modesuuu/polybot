@@ -1,0 +1,5 @@
+.env
+*.db
+*.pkl
+__pycache__/
+backend/_dead_code_archive/

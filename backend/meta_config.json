@@ -12,7 +12,9 @@
         "volatility_threshold_multiplier": 0.04,
         "profit_target_multiplier": 1.2,
         "stop_loss_multiplier": 0.95,
-        "atr_period": 14
+        "atr_period": 14,
+        "max_vwap_extension": 8.0,
+        "sideways_obi_min": 0.70
     },
     "trend_filter_mode": "OFF",
     "last_ai_tuning": "2026-09-10 07:39:51",

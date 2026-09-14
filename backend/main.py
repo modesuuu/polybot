@@ -15,6 +15,7 @@ from worker import trading_worker, mark_to_market_worker
 from telegram_bot import run_telegram_bot
 import ml_data_collector
 from ml_brain import ml_brain
+from news_filter import news_filter
 
 app = FastAPI(title="Polymarket Algo Bot API")
 
@@ -187,6 +188,26 @@ def train_ml_model():
         "success": success, 
         "message": "Model XGBoost berhasil dilatih" if success else "Gagal melatih model"
     }
+
+@app.get("/api/news/upcoming")
+def get_news_upcoming():
+    """Daftar jadwal berita high-impact USD berikutnya (auto-sync)."""
+    try:
+        return {"upcoming": news_filter.get_upcoming_news(8)}
+    except Exception as e:
+        return {"upcoming": [], "error": str(e)}
+
+
+@app.get("/api/news/blackout")
+def get_news_blackout():
+    """Status blackout aktif/tidak + event berikutnya."""
+    try:
+        active = news_filter.is_blackout_active()
+        name, mins = news_filter.get_next_blackout()
+        return {"active": active, "next_event": name, "next_minutes": mins}
+    except Exception as e:
+        return {"active": False, "error": str(e)}
+
 
 @app.get("/api/ml/audit-history")
 def get_audit_history(db: Session = Depends(get_db)):

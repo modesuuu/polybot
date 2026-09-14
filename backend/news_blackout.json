@@ -1,0 +1,34 @@
+{
+  "events": [
+    {
+      "event_name": "Federal Funds Rate",
+      "start_ts": 1789580700,
+      "end_ts": 1789583400,
+      "auto": true
+    },
+    {
+      "event_name": "FOMC Economic Projections",
+      "start_ts": 1789580700,
+      "end_ts": 1789583400,
+      "auto": true
+    },
+    {
+      "event_name": "FOMC Statement",
+      "start_ts": 1789580700,
+      "end_ts": 1789583400,
+      "auto": true
+    },
+    {
+      "event_name": "FOMC Press Conference",
+      "start_ts": 1789582500,
+      "end_ts": 1789585200,
+      "auto": true
+    },
+    {
+      "event_name": "FOMC Rate Decision & Statement",
+      "start_ts": 1789400000,
+      "end_ts": 1789403600
+    }
+  ],
+  "last_sync_utc": "2026-09-14T16:58:58.497887"
+}

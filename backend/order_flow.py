@@ -23,6 +23,7 @@ class OrderFlowEngine:
     def __init__(self, symbol="btcusdt"):
         self.symbol = symbol.lower()
         self.ws_url = f"wss://data-stream.binance.vision/ws/{self.symbol}@aggTrade"
+        self.ws_depth_url = f"wss://data-stream.binance.vision/ws/{self.symbol}@depth10@100ms"
 
         # Core state
         self.current_window_start = None
@@ -115,11 +116,16 @@ class OrderFlowEngine:
     def get_orderbook_imbalance_ratio(self, use_cache=True):
         try:
             now = time.time()
-            if use_cache and self._ob_cache and (now - self._ob_cache_ts) < self._ob_cache_ttl:
+            # 1. Jika data dari WebSocket depth masih fresh (< 2 detik), gunakan langsung tanpa panggil REST!
+            if self._ob_cache and (now - self._ob_cache_ts) < self._ob_cache_ttl:
                 return self._ob_cache
 
+            # 2. Fallback jika WebSocket sempat disconnect (REST call aman)
             data = self._safe_fetch(BINANCE_DEPTH_URL, params={"symbol": self.symbol.upper(), "limit": 10})
             if not data:
+                # Jika cache sebelumnya masih ada (meskipun agak lewat TTL), gunakan daripada SKIP
+                if self._ob_cache:
+                    return self._ob_cache
                 self._obi_fresh = False
                 return {"ratio": 0.5, "raw": 0.0, "bid_vol": 0, "ask_vol": 0, "stale": True}
 
@@ -280,18 +286,57 @@ class OrderFlowEngine:
         return self.current_price
 
     async def connect_and_listen(self):
-        """WebSocket listener untuk aggTrade (SPOT)."""
+        """WebSocket listener untuk aggTrade (SPOT) dan depth10 (Orderbook)."""
+        asyncio.create_task(self._connect_depth_ws())
         while True:
             try:
-                print(f"[OrderFlow] Connecting to {self.ws_url}...")
+                print(f"[OrderFlow] Connecting to Trade WS: {self.ws_url}...")
                 async with websockets.connect(self.ws_url) as ws:
-                    print("[OrderFlow] Connected to Binance WS.")
+                    print("[OrderFlow] Connected to Binance Trade WS.")
                     while True:
                         msg = await ws.recv()
                         self._process_message(json.loads(msg))
             except Exception as e:
-                print(f"[OrderFlow] WS Error: {e}. Reconnecting in 5s...")
+                print(f"[OrderFlow] Trade WS Error: {e}. Reconnecting in 5s...")
                 await asyncio.sleep(5)
+
+    async def _connect_depth_ws(self):
+        """WebSocket listener terpisah untuk orderbook depth (100ms real-time)."""
+        while True:
+            try:
+                print(f"[OrderFlow] Connecting to Depth WS: {self.ws_depth_url}...")
+                async with websockets.connect(self.ws_depth_url) as ws:
+                    print("[OrderFlow] Connected to Binance Depth WS (Real-time OBI).")
+                    while True:
+                        msg = await ws.recv()
+                        self._process_depth_message(json.loads(msg))
+            except Exception as e:
+                print(f"[OrderFlow] Depth WS Error: {e}. Reconnecting in 5s...")
+                await asyncio.sleep(5)
+
+    def _process_depth_message(self, msg):
+        """Proses pesan depth10@100ms real-time untuk update OBI cache secara instan."""
+        try:
+            bids = msg.get("bids", [])[:10]
+            asks = msg.get("asks", [])[:10]
+            bid_vol = sum(float(b[1]) for b in bids)
+            ask_vol = sum(float(a[1]) for a in asks)
+            total = bid_vol + ask_vol
+            
+            if total <= 0:
+                result = {"ratio": 0.5, "raw": 0.0, "bid_vol": bid_vol, "ask_vol": ask_vol}
+            else:
+                ratio = bid_vol / total
+                raw = (bid_vol - ask_vol) / total
+                result = {"ratio": ratio, "raw": raw, "bid_vol": bid_vol, "ask_vol": ask_vol}
+
+            self._ob_cache = result
+            self._ob_cache_ts = time.time()
+            self._obi_fresh = True
+            self.orderbook_imbalance_ratio = result["ratio"]
+            self.orderbook_imbalance_raw = result["raw"]
+        except Exception as e:
+            print(f"[OrderFlow] _process_depth_message error: {e}")
 
     def _process_message(self, msg):
         """Proses aggTrade message untuk CVD dan Delta."""

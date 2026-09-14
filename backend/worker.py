@@ -15,6 +15,7 @@ import ml_data_collector
 from ml_brain import ml_brain
 from llm_news_oracle import news_oracle
 import strategy_logic
+from news_filter import news_filter
 
 # Path Config
 META_CONFIG_PATH = os.path.join(os.path.dirname(__file__), "meta_config.json")
@@ -434,6 +435,16 @@ async def trading_worker():
                     current_cycle_minute = minute_bucket
                     continue
 
+                # Economic News Blackout Filter check
+                try:
+                    if news_filter.is_blackout_active():
+                        next_event, mins = news_filter.get_next_blackout()
+                        print(f"[{now}] [NEWS BLACKOUT] Ada berita high-impact ({next_event}) dalam {mins} menit / sedang rilis. SKIP ENTRY SIKLUS INI.")
+                        current_cycle_minute = minute_bucket
+                        continue
+                except Exception as nf_e:
+                    print(f"[NEWS FILTER ERROR] {nf_e}")
+
                 # Circuit breaker check — Moss risk halt
                 try:
                     bal_for_check = get_current_balance(db)
@@ -497,6 +508,7 @@ async def trading_worker():
                         # inject consecutive loss state into snapshot for risk scoring
                         st = strategy_logic.load_strategy_state()
                         quant_snapshot["consecutive_losses"] = st.get("consecutive_losses", 0)
+                        quant_snapshot["signal_direction"] = direction
                         quant_snapshot.update({
                             "rsi": indicators.get("rsi", 50),
                             "atr": indicators.get("atr", 0),
